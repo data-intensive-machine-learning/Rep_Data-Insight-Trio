@@ -1,0 +1,119 @@
+=======================================================
+Board Name: Lahore Board
+Result Submitted:Part 2 1st Annual 2023
+Total Extracted Records :190,566
+Website Link:http://result.biselahore.com/
+
+Group Members:
+Memoona Majeed BSCS51F20R004
+Mehak Naeem    BSCS51F20R005
+Zeeshan Haider BSCS51F20R028
+
+========================================================
+
+
+Our Code:
+========================================================
+
+const puppeteer = require('puppeteer');
+const ExcelJS = require('exceljs');
+const fs = require('fs');
+
+(async () => {
+  const browser = await puppeteer.launch({
+    timeout: 60000,
+  });
+  const page = await browser.newPage();
+  await page.setDefaultTimeout(5000000);
+
+  await page.goto('http://result.biselahore.com/');
+
+  await page.click('input[id="rdlistCourse_1"]');
+
+  
+  const startingRollNumber = 644501;
+const endingRollNumber = 645000;
+
+   let workbook;
+
+  
+  if (fs.existsSync('last1.xlsx')) {
+    
+    workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile('last1.xlsx');
+  } else {
+   
+    workbook = new ExcelJS.Workbook();
+   
+    workbook.addWorksheet('Results');
+  }
+
+ 
+  const worksheet = workbook.getWorksheet('Results');
+
+  
+  if (worksheet.rowCount === 1) {
+    const headers = [
+      'Roll Number',
+      'Name',
+      'Institution',
+      'SUBJECT',
+      'Max Theory',
+      'MAXIMUM MARKS PR',
+      'MAX MARKS TOTAL',
+      'MARKS OBTAINED TH1',
+      'MARKS OBTAINED TH2',
+      'MARKS OBTAINED PR',
+      'MARKS OBTAINED TOTAL',
+      'PERCENTILE SCORE',
+      'REL. GRADE',
+      'STATUS',
+    ];
+    worksheet.addRow(headers);
+  }
+
+  for (let currentRollNumber = startingRollNumber; currentRollNumber <= endingRollNumber; currentRollNumber++) {
+    
+    const rollNumber = currentRollNumber.toString();
+
+    await page.type('#txtFormNo', rollNumber);
+    await page.click('#Button1');
+    
+    try {
+     
+      await page.waitForSelector('#Name');
+      await page.waitForSelector('#lblExamCenter');
+      
+      const name = await page.$eval('#Name', (element) => element.innerText.trim());
+      const institution = await page.$eval('#lblExamCenter', (element) => element.innerText.trim());
+
+      const rows = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll('#GridStudentData tr:not(:nth-child(1)):not(:nth-child(2))'));
+        return rows.map((row) => {
+          const columns = Array.from(row.querySelectorAll('td'));
+          return columns.map((column) => column.innerText.trim());
+        });
+      });
+
+      for (const row of rows) {
+        worksheet.addRow([rollNumber, name, institution, ...row]);
+      }
+    } catch (error) {
+      console.error(`Error for roll number ${rollNumber}: ${error.message}`);
+    } finally {
+      await page.goBack();
+      await page.evaluate(() => {
+        document.querySelector('#txtFormNo').value = '';
+      });
+    }
+  }
+
+  
+  await workbook.xlsx.writeFile('last1.xlsx');
+
+  await browser.close();
+
+ 
+})();
+
+=========================================================
